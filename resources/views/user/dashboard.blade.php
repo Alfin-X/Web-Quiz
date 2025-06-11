@@ -127,11 +127,24 @@
             @if($quizzes->count() > 0)
                 <div class="row">
                     @foreach($quizzes as $quiz)
+                        @php
+                            $isCompleted = in_array($quiz->id, $userCompletedQuizzes);
+                        @endphp
                         <div class="col-md-4 mb-4">
-                            <div class="card quiz-card h-100">
-                                <div class="card-header bg-primary text-white">
-                                    <h5 class="card-title mb-0">{{ $quiz->title }}</h5>
+                            <div class="card quiz-card h-100 {{ $isCompleted ? 'border-success' : '' }}">
+                                <div class="card-header {{ $isCompleted ? 'bg-success' : 'bg-primary' }} text-white position-relative">
+                                    <h5 class="card-title mb-0">
+                                        {{ $quiz->title }}
+                                        @if($isCompleted)
+                                            <i class="bi bi-check-circle-fill ms-2"></i>
+                                        @endif
+                                    </h5>
                                     <small>{{ $quiz->category->name }}</small>
+                                    @if($isCompleted)
+                                        <span class="position-absolute top-0 start-100 translate-middle badge rounded-pill bg-warning text-dark">
+                                            <i class="bi bi-trophy-fill"></i> Completed
+                                        </span>
+                                    @endif
                                 </div>
                                 <div class="card-body">
                                     <p class="card-text">{{ Str::limit($quiz->description, 100) }}</p>
@@ -151,9 +164,41 @@
                                     </div>
                                 </div>
                                 <div class="card-footer">
-                                    <a href="{{ route('quiz.show', $quiz) }}" class="btn btn-primary w-100">
-                                        <i class="bi bi-play-circle"></i> Take Quiz
-                                    </a>
+                                    @if($isCompleted)
+                                        <div class="row">
+                                            <div class="col-6">
+                                                <a href="{{ route('quiz.show', $quiz) }}" class="btn btn-outline-success w-100 btn-sm">
+                                                    <i class="bi bi-arrow-repeat"></i> Retake
+                                                </a>
+                                            </div>
+                                            <div class="col-6">
+                                                @php
+                                                    $lastAttempt = \App\Models\QuizAttempt::where('user_id', auth()->id())
+                                                        ->where('quiz_id', $quiz->id)
+                                                        ->whereNotNull('completed_at')
+                                                        ->latest()
+                                                        ->first();
+                                                @endphp
+                                                @if($lastAttempt)
+                                                    <a href="{{ route('quiz.result', ['quiz' => $quiz, 'attempt' => $lastAttempt]) }}" class="btn btn-info w-100 btn-sm">
+                                                        <i class="bi bi-eye"></i> View Result
+                                                    </a>
+                                                @endif
+                                            </div>
+                                        </div>
+                                        <div class="mt-2 text-center">
+                                            @if($lastAttempt)
+                                                <small class="text-success">
+                                                    <i class="bi bi-check-circle"></i>
+                                                    Last Score: <strong>{{ $lastAttempt->score }}%</strong>
+                                                </small>
+                                            @endif
+                                        </div>
+                                    @else
+                                        <a href="{{ route('quiz.show', $quiz) }}" class="btn btn-primary w-100">
+                                            <i class="bi bi-play-circle"></i> Take Quiz
+                                        </a>
+                                    @endif
                                 </div>
                             </div>
                         </div>
@@ -222,3 +267,46 @@
     @endif
 </div>
 @endsection
+
+@push('styles')
+<style>
+.quiz-card.border-success {
+    border-width: 2px !important;
+    box-shadow: 0 4px 8px rgba(40, 167, 69, 0.2);
+}
+
+.quiz-card.border-success:hover {
+    transform: translateY(-3px);
+    box-shadow: 0 6px 12px rgba(40, 167, 69, 0.3);
+}
+
+.completed-badge {
+    animation: pulse 2s infinite;
+}
+
+@keyframes pulse {
+    0% {
+        transform: scale(1);
+    }
+    50% {
+        transform: scale(1.05);
+    }
+    100% {
+        transform: scale(1);
+    }
+}
+
+.quiz-card {
+    transition: all 0.3s ease;
+}
+
+.quiz-card:hover {
+    transform: translateY(-5px);
+    box-shadow: 0 8px 16px rgba(0,0,0,0.1);
+}
+
+.badge.bg-warning.text-dark {
+    animation: pulse 2s infinite;
+}
+</style>
+@endpush

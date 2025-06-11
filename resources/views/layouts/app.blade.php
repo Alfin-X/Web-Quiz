@@ -90,10 +90,25 @@
                                         <i class="bi bi-tags"></i> Categories
                                     </a>
                                 </li>
-                                <li class="nav-item">
-                                    <a class="nav-link" href="{{ route('admin.statistics') }}">
-                                        <i class="bi bi-graph-up"></i> Statistics
+                                <li class="nav-item dropdown">
+                                    <a class="nav-link dropdown-toggle" href="#" id="adminAnalyticsDropdown" role="button" data-bs-toggle="dropdown" aria-expanded="false">
+                                        <i class="bi bi-graph-up"></i> Analytics
                                     </a>
+                                    <ul class="dropdown-menu" aria-labelledby="adminAnalyticsDropdown">
+                                        <li><a class="dropdown-item" href="{{ route('admin.statistics') }}">
+                                            <i class="bi bi-bar-chart"></i> Statistics
+                                        </a></li>
+                                        <li><a class="dropdown-item" href="{{ route('admin.analytics') }}">
+                                            <i class="bi bi-graph-up"></i> Advanced Analytics
+                                        </a></li>
+                                        <li><a class="dropdown-item" href="{{ route('admin.leaderboard') }}">
+                                            <i class="bi bi-trophy"></i> Leaderboard
+                                        </a></li>
+                                        <li><hr class="dropdown-divider"></li>
+                                        <li><a class="dropdown-item" href="{{ route('admin.export.data') }}">
+                                            <i class="bi bi-download"></i> Export Data
+                                        </a></li>
+                                    </ul>
                                 </li>
                             @else
                                 <li class="nav-item">

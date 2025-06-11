@@ -10,6 +10,7 @@ use App\Models\QuestionOption;
 use App\Models\QuizAttempt;
 use App\Models\User;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Storage;
 
 class AdminController extends Controller
 {
@@ -157,15 +158,23 @@ class AdminController extends Controller
     {
         $request->validate([
             'question_text' => 'required|string',
+            'question_image' => 'nullable|image|mimes:jpeg,png,jpg,gif|max:2048',
             'options' => 'required|array|min:2|max:4',
             'options.*' => 'required|string',
             'correct_option' => 'required|integer|min:0|max:3',
         ]);
 
         DB::transaction(function () use ($request, $quiz) {
+            // Handle image upload
+            $imagePath = null;
+            if ($request->hasFile('question_image')) {
+                $imagePath = $request->file('question_image')->store('question-images', 'public');
+            }
+
             $question = Question::create([
                 'quiz_id' => $quiz->id,
                 'question_text' => $request->question_text,
+                'image_path' => $imagePath,
                 'order' => $quiz->questions()->count() + 1,
             ]);
 
@@ -186,14 +195,26 @@ class AdminController extends Controller
     {
         $request->validate([
             'question_text' => 'required|string',
+            'question_image' => 'nullable|image|mimes:jpeg,png,jpg,gif|max:2048',
             'options' => 'required|array|min:2|max:4',
             'options.*' => 'required|string',
             'correct_option' => 'required|integer|min:0|max:3',
         ]);
 
         DB::transaction(function () use ($request, $question) {
+            // Handle image upload
+            $imagePath = $question->image_path; // Keep existing image if no new upload
+            if ($request->hasFile('question_image')) {
+                // Delete old image if exists
+                if ($question->image_path && \Storage::disk('public')->exists($question->image_path)) {
+                    \Storage::disk('public')->delete($question->image_path);
+                }
+                $imagePath = $request->file('question_image')->store('question-images', 'public');
+            }
+
             $question->update([
                 'question_text' => $request->question_text,
+                'image_path' => $imagePath,
             ]);
 
             // Delete existing options
@@ -216,6 +237,12 @@ class AdminController extends Controller
     public function destroyQuestion(Question $question)
     {
         $quiz = $question->quiz;
+
+        // Delete associated image if exists
+        if ($question->image_path && \Storage::disk('public')->exists($question->image_path)) {
+            \Storage::disk('public')->delete($question->image_path);
+        }
+
         $question->delete();
 
         return redirect()->route('admin.questions', $quiz)
@@ -254,6 +281,142 @@ class AdminController extends Controller
         return view('admin.statistics', compact('stats'));
     }
 
+    public function leaderboard(Request $request)
+    {
+        $query = QuizAttempt::with(['user', 'quiz.category'])
+            ->whereNotNull('completed_at');
+
+        // Filter by quiz if specified
+        if ($request->quiz_id) {
+            $query->where('quiz_id', $request->quiz_id);
+        }
+
+        // Filter by category if specified
+        if ($request->category_id) {
+            $query->whereHas('quiz', function($q) use ($request) {
+                $q->where('category_id', $request->category_id);
+            });
+        }
+
+        // Filter by date range if specified
+        if ($request->date_from) {
+            $query->whereDate('completed_at', '>=', $request->date_from);
+        }
+        if ($request->date_to) {
+            $query->whereDate('completed_at', '<=', $request->date_to);
+        }
+
+        $leaderboard = $query->orderBy('score', 'desc')
+            ->orderBy('completed_at', 'asc')
+            ->paginate(50);
+
+        $quizzes = Quiz::with('category')->where('is_active', true)->get();
+        $categories = Category::all();
+
+        return view('admin.leaderboard', compact('leaderboard', 'quizzes', 'categories'));
+    }
+
+    public function analytics(Request $request)
+    {
+        // Basic stats
+        $totalQuizzes = Quiz::count();
+        $totalUsers = User::where('role', 'user')->count();
+        $totalAttempts = QuizAttempt::whereNotNull('completed_at')->count();
+        $totalQuestions = Question::count();
+
+
+
+        // Question difficulty analysis
+        $questionDifficulty = DB::table('questions')
+            ->leftJoin('user_answers', 'questions.id', '=', 'user_answers.question_id')
+            ->leftJoin('question_options', function($join) {
+                $join->on('user_answers.selected_option_id', '=', 'question_options.id')
+                     ->where('question_options.is_correct', true);
+            })
+            ->select('questions.id', 'questions.question_text')
+            ->selectRaw('
+                COUNT(user_answers.id) as total_answers,
+                COUNT(question_options.id) as correct_answers,
+                CASE
+                    WHEN COUNT(user_answers.id) > 0
+                    THEN ROUND((COUNT(question_options.id) * 100.0 / COUNT(user_answers.id)), 2)
+                    ELSE 0
+                END as success_rate
+            ')
+            ->groupBy('questions.id', 'questions.question_text')
+            ->having('total_answers', '>', 0)
+            ->orderBy('success_rate', 'asc')
+            ->get();
+
+        // Monthly participation trend (last 12 months)
+        $participationTrend = QuizAttempt::whereNotNull('completed_at')
+            ->where('completed_at', '>=', now()->subMonths(12))
+            ->selectRaw('DATE_FORMAT(completed_at, "%Y-%m") as month, COUNT(*) as attempts')
+            ->groupBy('month')
+            ->orderBy('month')
+            ->get();
+
+        // Category performance
+        $categoryPerformance = Category::withCount('quizzes')
+            ->with(['quizzes' => function($query) {
+                $query->withCount('attempts')
+                      ->with(['attempts' => function($q) {
+                          $q->whereNotNull('completed_at');
+                      }]);
+            }])
+            ->get()
+            ->map(function($category) {
+                $totalAttempts = $category->quizzes->sum('attempts_count');
+                $avgScore = 0;
+
+                if ($totalAttempts > 0) {
+                    $allAttempts = $category->quizzes->flatMap->attempts;
+                    $avgScore = $allAttempts->avg('score') ?? 0;
+                }
+
+                return [
+                    'name' => $category->name,
+                    'quizzes_count' => $category->quizzes_count,
+                    'total_attempts' => $totalAttempts,
+                    'avg_score' => round($avgScore, 2),
+                ];
+            });
+
+        // Top performers
+        $topPerformers = User::where('role', 'user')
+            ->withCount(['quizAttempts as completed_quizzes' => function($query) {
+                $query->whereNotNull('completed_at');
+            }])
+            ->with(['quizAttempts' => function($query) {
+                $query->whereNotNull('completed_at');
+            }])
+            ->get()
+            ->map(function($user) {
+                $avgScore = $user->quizAttempts->avg('score') ?? 0;
+                return [
+                    'user' => $user,
+                    'completed_quizzes' => $user->completed_quizzes,
+                    'avg_score' => round($avgScore, 2),
+                ];
+            })
+            ->sortByDesc('avg_score')
+            ->take(10);
+
+        return view('admin.analytics', compact(
+            'totalQuizzes', 'totalUsers', 'totalAttempts', 'totalQuestions',
+            'questionDifficulty', 'participationTrend',
+            'categoryPerformance', 'topPerformers'
+        ));
+    }
+
+    public function exportData()
+    {
+        $quizzes = Quiz::with('category')->where('is_active', true)->get();
+        $categories = Category::all();
+
+        return view('admin.export', compact('quizzes', 'categories'));
+    }
+
     public function exportResults(Quiz $quiz)
     {
         $attempts = QuizAttempt::with(['user', 'userAnswers.question', 'userAnswers.selectedOption'])
@@ -276,25 +439,125 @@ class AdminController extends Controller
                 'User Name',
                 'Email',
                 'Score',
-                'Percentage',
-                'Correct Answers',
                 'Total Questions',
+                'Correct Answers',
+                'Completion Time',
                 'Started At',
                 'Completed At',
                 'Duration (minutes)'
             ]);
 
             foreach ($attempts as $attempt) {
+                $duration = $attempt->started_at && $attempt->completed_at
+                    ? $attempt->started_at->diffInMinutes($attempt->completed_at)
+                    : 0;
+
                 fputcsv($file, [
                     $attempt->user->name,
                     $attempt->user->email,
                     $attempt->score,
-                    $attempt->percentage . '%',
-                    $attempt->correct_answers,
                     $attempt->total_questions,
+                    $attempt->correct_answers,
+                    $attempt->completed_at ? $attempt->completed_at->format('Y-m-d H:i:s') : '',
                     $attempt->started_at->format('Y-m-d H:i:s'),
-                    $attempt->completed_at->format('Y-m-d H:i:s'),
-                    $attempt->duration
+                    $attempt->completed_at ? $attempt->completed_at->format('Y-m-d H:i:s') : '',
+                    $duration
+                ]);
+            }
+
+            fclose($file);
+        };
+
+        return response()->stream($callback, 200, $headers);
+    }
+
+    public function exportCustomData(Request $request)
+    {
+        $request->validate([
+            'export_type' => 'required|in:all_results,quiz_specific,category_specific,date_range',
+            'quiz_id' => 'nullable|exists:quizzes,id',
+            'category_id' => 'nullable|exists:categories,id',
+            'date_from' => 'nullable|date',
+            'date_to' => 'nullable|date|after_or_equal:date_from',
+        ]);
+
+        $query = QuizAttempt::with(['user', 'quiz.category'])
+            ->whereNotNull('completed_at');
+
+        // Apply filters based on export type
+        switch ($request->export_type) {
+            case 'quiz_specific':
+                if ($request->quiz_id) {
+                    $query->where('quiz_id', $request->quiz_id);
+                }
+                break;
+            case 'category_specific':
+                if ($request->category_id) {
+                    $query->whereHas('quiz', function($q) use ($request) {
+                        $q->where('category_id', $request->category_id);
+                    });
+                }
+                break;
+            case 'date_range':
+                if ($request->date_from) {
+                    $query->whereDate('completed_at', '>=', $request->date_from);
+                }
+                if ($request->date_to) {
+                    $query->whereDate('completed_at', '<=', $request->date_to);
+                }
+                break;
+        }
+
+        $attempts = $query->orderBy('completed_at', 'desc')->get();
+
+        $filename = 'quiz_export_' . $request->export_type . '_' . date('Y-m-d_H-i-s') . '.csv';
+
+        $headers = [
+            'Content-Type' => 'text/csv',
+            'Content-Disposition' => 'attachment; filename="' . $filename . '"',
+        ];
+
+        $callback = function() use ($attempts) {
+            $file = fopen('php://output', 'w');
+
+            // CSV Headers
+            fputcsv($file, [
+                'User Name',
+                'Email',
+                'Quiz Title',
+                'Category',
+                'Score (%)',
+                'Total Questions',
+                'Correct Answers',
+                'Started At',
+                'Completed At',
+                'Duration (minutes)',
+                'Performance Level'
+            ]);
+
+            foreach ($attempts as $attempt) {
+                $duration = $attempt->started_at && $attempt->completed_at
+                    ? $attempt->started_at->diffInMinutes($attempt->completed_at)
+                    : 0;
+
+                $performanceLevel = 'Needs Improvement';
+                if ($attempt->score >= 90) $performanceLevel = 'Excellent';
+                elseif ($attempt->score >= 80) $performanceLevel = 'Very Good';
+                elseif ($attempt->score >= 70) $performanceLevel = 'Good';
+                elseif ($attempt->score >= 60) $performanceLevel = 'Fair';
+
+                fputcsv($file, [
+                    $attempt->user->name,
+                    $attempt->user->email,
+                    $attempt->quiz->title,
+                    $attempt->quiz->category->name,
+                    $attempt->score,
+                    $attempt->total_questions,
+                    $attempt->correct_answers,
+                    $attempt->started_at->format('Y-m-d H:i:s'),
+                    $attempt->completed_at ? $attempt->completed_at->format('Y-m-d H:i:s') : '',
+                    $duration,
+                    $performanceLevel
                 ]);
             }
 

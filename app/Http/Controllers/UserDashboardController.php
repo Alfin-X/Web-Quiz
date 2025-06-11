@@ -28,6 +28,12 @@ class UserDashboardController extends Controller
         $quizzes = $query->latest()->paginate(12);
         $categories = Category::all();
 
+        // Get user's completed quiz attempts
+        $userCompletedQuizzes = QuizAttempt::where('user_id', auth()->id())
+            ->whereNotNull('completed_at')
+            ->pluck('quiz_id')
+            ->toArray();
+
         // User statistics
         $userStats = [
             'total_attempts' => QuizAttempt::where('user_id', auth()->id())->count(),
@@ -45,7 +51,7 @@ class UserDashboardController extends Controller
                 ->get(),
         ];
 
-        return view('user.dashboard', compact('quizzes', 'categories', 'userStats'));
+        return view('user.dashboard', compact('quizzes', 'categories', 'userStats', 'userCompletedQuizzes'));
     }
 
     public function results()

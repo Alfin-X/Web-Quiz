@@ -61,6 +61,16 @@ Route::middleware(['auth'])->group(function () {
 
         // Statistics
         Route::get('/statistics', [AdminController::class, 'statistics'])->name('statistics');
+
+        // Leaderboard
+        Route::get('/leaderboard', [AdminController::class, 'leaderboard'])->name('leaderboard');
+
+        // Analytics
+        Route::get('/analytics', [AdminController::class, 'analytics'])->name('analytics');
+
+        // Export Data
+        Route::get('/export-data', [AdminController::class, 'exportData'])->name('export.data');
+        Route::post('/export-custom', [AdminController::class, 'exportCustomData'])->name('export.custom');
         Route::get('/export/{quiz}', [AdminController::class, 'exportResults'])->name('export');
     });
 });

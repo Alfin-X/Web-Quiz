@@ -120,7 +120,7 @@
 <div class="modal fade" id="addQuestionModal" tabindex="-1" aria-hidden="true">
     <div class="modal-dialog modal-lg">
         <div class="modal-content">
-            <form method="POST" action="{{ route('admin.questions.store', $quiz) }}">
+            <form method="POST" action="{{ route('admin.questions.store', $quiz) }}" enctype="multipart/form-data">
                 @csrf
                 <div class="modal-header">
                     <h5 class="modal-title">Add New Question</h5>
@@ -129,11 +129,29 @@
                 <div class="modal-body">
                     <div class="mb-3">
                         <label for="question_text" class="form-label">Question Text</label>
-                        <textarea class="form-control @error('question_text') is-invalid @enderror" 
+                        <textarea class="form-control @error('question_text') is-invalid @enderror"
                                   id="question_text" name="question_text" rows="3" required>{{ old('question_text') }}</textarea>
                         @error('question_text')
                             <div class="invalid-feedback">{{ $message }}</div>
                         @enderror
+                    </div>
+
+                    <div class="mb-3">
+                        <label for="question_image" class="form-label">Question Image (Optional)</label>
+                        <input type="file" class="form-control @error('question_image') is-invalid @enderror"
+                               id="question_image" name="question_image" accept="image/*">
+                        <div class="form-text">Supported formats: JPEG, PNG, JPG, GIF. Max size: 2MB</div>
+                        @error('question_image')
+                            <div class="invalid-feedback">{{ $message }}</div>
+                        @enderror
+
+                        <!-- Image Preview -->
+                        <div id="imagePreview" class="mt-2" style="display: none;">
+                            <img id="previewImg" src="" alt="Preview" class="img-thumbnail" style="max-width: 200px; max-height: 150px;">
+                            <button type="button" class="btn btn-sm btn-danger ms-2" onclick="removeImagePreview()">
+                                <i class="bi bi-trash"></i> Remove
+                            </button>
+                        </div>
                     </div>
                     
                     <div class="mb-3">
@@ -171,7 +189,7 @@
 <div class="modal fade" id="editQuestionModal" tabindex="-1" aria-hidden="true">
     <div class="modal-dialog modal-lg">
         <div class="modal-content">
-            <form method="POST" id="editQuestionForm">
+            <form method="POST" id="editQuestionForm" enctype="multipart/form-data">
                 @csrf
                 @method('PUT')
                 <div class="modal-header">
