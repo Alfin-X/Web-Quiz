@@ -110,6 +110,30 @@
                                         </a></li>
                                     </ul>
                                 </li>
+                            @elseif(auth()->user()->isGuru())
+                                <li class="nav-item">
+                                    <a class="nav-link" href="{{ route('guru.dashboard') }}">
+                                        <i class="bi bi-speedometer2"></i> Guru Dashboard
+                                    </a>
+                                </li>
+                                <li class="nav-item">
+                                    <a class="nav-link" href="{{ route('guru.quizzes') }}">
+                                        <i class="bi bi-journal-text"></i> My Quizzes
+                                    </a>
+                                </li>
+                                <li class="nav-item dropdown">
+                                    <a class="nav-link dropdown-toggle" href="#" id="guruAnalyticsDropdown" role="button" data-bs-toggle="dropdown" aria-expanded="false">
+                                        <i class="bi bi-graph-up"></i> Analytics
+                                    </a>
+                                    <ul class="dropdown-menu" aria-labelledby="guruAnalyticsDropdown">
+                                        <li><a class="dropdown-item" href="{{ route('guru.statistics') }}">
+                                            <i class="bi bi-bar-chart"></i> Statistics
+                                        </a></li>
+                                        <li><a class="dropdown-item" href="{{ route('guru.leaderboard') }}">
+                                            <i class="bi bi-trophy"></i> Leaderboard
+                                        </a></li>
+                                    </ul>
+                                </li>
                             @else
                                 <li class="nav-item">
                                     <a class="nav-link" href="{{ route('user.dashboard') }}">
@@ -118,7 +142,12 @@
                                 </li>
                                 <li class="nav-item">
                                     <a class="nav-link" href="{{ route('user.results') }}">
-                                        <i class="bi bi-trophy"></i> My Results
+                                        <i class="bi bi-clipboard-check"></i> My Results
+                                    </a>
+                                </li>
+                                <li class="nav-item">
+                                    <a class="nav-link" href="{{ route('user.leaderboard') }}">
+                                        <i class="bi bi-trophy"></i> Leaderboard
                                     </a>
                                 </li>
                             @endif
@@ -147,6 +176,10 @@
                                     {{ Auth::user()->name }}
                                     @if(auth()->user()->isAdmin())
                                         <span class="badge bg-danger ms-1">Admin</span>
+                                    @elseif(auth()->user()->isGuru())
+                                        <span class="badge bg-success ms-1">Guru</span>
+                                    @else
+                                        <span class="badge bg-primary ms-1">Murid</span>
                                     @endif
                                 </a>
 

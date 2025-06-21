@@ -348,13 +348,7 @@ class AdminController extends Controller
             ->orderBy('success_rate', 'asc')
             ->get();
 
-        // Monthly participation trend (last 12 months)
-        $participationTrend = QuizAttempt::whereNotNull('completed_at')
-            ->where('completed_at', '>=', now()->subMonths(12))
-            ->selectRaw('DATE_FORMAT(completed_at, "%Y-%m") as month, COUNT(*) as attempts')
-            ->groupBy('month')
-            ->orderBy('month')
-            ->get();
+
 
         // Category performance
         $categoryPerformance = Category::withCount('quizzes')
@@ -404,8 +398,7 @@ class AdminController extends Controller
 
         return view('admin.analytics', compact(
             'totalQuizzes', 'totalUsers', 'totalAttempts', 'totalQuestions',
-            'questionDifficulty', 'participationTrend',
-            'categoryPerformance', 'topPerformers'
+            'questionDifficulty', 'categoryPerformance', 'topPerformers'
         ));
     }
 

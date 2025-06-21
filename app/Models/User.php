@@ -53,6 +53,14 @@ class User extends Authenticatable
     }
 
     /**
+     * Check if user is guru
+     */
+    public function isGuru(): bool
+    {
+        return $this->role === 'guru';
+    }
+
+    /**
      * Check if user is regular user
      */
     public function isUser(): bool

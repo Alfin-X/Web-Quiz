@@ -2,6 +2,7 @@
 
 use Illuminate\Support\Facades\Route;
 use App\Http\Controllers\AdminController;
+use App\Http\Controllers\GuruController;
 use App\Http\Controllers\QuizController;
 use App\Http\Controllers\UserDashboardController;
 
@@ -28,12 +29,14 @@ Route::middleware(['auth'])->group(function () {
 
     // User Dashboard Routes
     Route::get('/dashboard', [UserDashboardController::class, 'index'])->name('user.dashboard');
+    Route::get('/category/{category}/quizzes', [UserDashboardController::class, 'categoryQuizzes'])->name('user.category.quizzes');
     Route::get('/quiz/{quiz}', [QuizController::class, 'show'])->name('quiz.show');
     Route::post('/quiz/{quiz}/start', [QuizController::class, 'start'])->name('quiz.start');
     Route::get('/quiz/{quiz}/take/{attempt}', [QuizController::class, 'take'])->name('quiz.take');
     Route::post('/quiz/{quiz}/submit', [QuizController::class, 'submit'])->name('quiz.submit');
     Route::get('/quiz/{quiz}/result/{attempt}', [QuizController::class, 'result'])->name('quiz.result');
     Route::get('/my-results', [UserDashboardController::class, 'results'])->name('user.results');
+    Route::get('/leaderboard', [UserDashboardController::class, 'leaderboard'])->name('user.leaderboard');
 
     // Admin Routes
     Route::middleware(['admin'])->prefix('admin')->name('admin.')->group(function () {
@@ -73,6 +76,50 @@ Route::middleware(['auth'])->group(function () {
         Route::post('/export-custom', [AdminController::class, 'exportCustomData'])->name('export.custom');
         Route::get('/export/{quiz}', [AdminController::class, 'exportResults'])->name('export');
     });
+
+    // Guru Routes
+    Route::middleware(['guru'])->prefix('guru')->name('guru.')->group(function () {
+        // Dashboard
+        Route::get('/dashboard', [GuruController::class, 'dashboard'])->name('dashboard');
+
+        // Quizzes
+        Route::get('/quizzes', [GuruController::class, 'quizzes'])->name('quizzes');
+        Route::get('/quizzes/create', [GuruController::class, 'createQuiz'])->name('quizzes.create');
+        Route::post('/quizzes', [GuruController::class, 'storeQuiz'])->name('quizzes.store');
+        Route::get('/quizzes/{quiz}/edit', [GuruController::class, 'editQuiz'])->name('quizzes.edit');
+        Route::put('/quizzes/{quiz}', [GuruController::class, 'updateQuiz'])->name('quizzes.update');
+        Route::delete('/quizzes/{quiz}', [GuruController::class, 'destroyQuiz'])->name('quizzes.destroy');
+
+        // Questions
+        Route::get('/quizzes/{quiz}/questions', [GuruController::class, 'questions'])->name('questions');
+        Route::post('/quizzes/{quiz}/questions', [GuruController::class, 'storeQuestion'])->name('questions.store');
+        Route::put('/questions/{question}', [GuruController::class, 'updateQuestion'])->name('questions.update');
+        Route::delete('/questions/{question}', [GuruController::class, 'destroyQuestion'])->name('questions.destroy');
+
+        // Statistics & Leaderboard
+        Route::get('/statistics', [GuruController::class, 'statistics'])->name('statistics');
+        Route::get('/leaderboard', [GuruController::class, 'leaderboard'])->name('leaderboard');
+    });
+
+    // API Routes for AJAX
+    Route::get('/api/questions/{question}', function(\App\Models\Question $question) {
+        // Ensure guru can only access their own questions
+        if ($question->quiz->created_by !== auth()->id() && !auth()->user()->isAdmin()) {
+            abort(403);
+        }
+
+        return response()->json([
+            'id' => $question->id,
+            'question_text' => $question->question_text,
+            'image_path' => $question->image_path,
+            'options' => $question->options->map(function($option, $index) {
+                return [
+                    'option_text' => $option->option_text,
+                    'is_correct' => $option->is_correct
+                ];
+            })
+        ]);
+    })->middleware('auth');
 });
 
 // API Routes for AJAX

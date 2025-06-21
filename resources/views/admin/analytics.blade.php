@@ -54,26 +54,7 @@
         </div>
     </div>
 
-    <!-- Participation Trend -->
-    <div class="row mb-4">
-        <div class="col-md-12">
-            <div class="card">
-                <div class="card-header">
-                    <h5><i class="bi bi-graph-up"></i> Participation Trend (Last 12 Months)</h5>
-                </div>
-                <div class="card-body">
-                    @if($participationTrend->count() > 0)
-                        <canvas id="participationTrendChart" width="400" height="200"></canvas>
-                    @else
-                        <div class="text-center py-4">
-                            <i class="bi bi-graph-up fs-1 text-muted"></i>
-                            <p class="text-muted mt-2">No participation data available</p>
-                        </div>
-                    @endif
-                </div>
-            </div>
-        </div>
-    </div>
+
 
     <!-- Question Difficulty Analysis -->
     <div class="row mb-4">
@@ -215,43 +196,5 @@
     </div>
 </div>
 
-<!-- Chart.js -->
-<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-<script>
-// Participation Trend Chart
-@if($participationTrend->count() > 0)
-const trendCtx = document.getElementById('participationTrendChart').getContext('2d');
-new Chart(trendCtx, {
-    type: 'line',
-    data: {
-        labels: [
-            @foreach($participationTrend as $trend)
-                '{{ $trend->month }}',
-            @endforeach
-        ],
-        datasets: [{
-            label: 'Quiz Attempts',
-            data: [
-                @foreach($participationTrend as $trend)
-                    {{ $trend->attempts }},
-                @endforeach
-            ],
-            borderColor: '#007bff',
-            backgroundColor: 'rgba(0, 123, 255, 0.1)',
-            tension: 0.4,
-            fill: true
-        }]
-    },
-    options: {
-        responsive: true,
-        maintainAspectRatio: false,
-        scales: {
-            y: {
-                beginAtZero: true
-            }
-        }
-    }
-});
-@endif
-</script>
+
 @endsection

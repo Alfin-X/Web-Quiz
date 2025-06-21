@@ -120,84 +120,51 @@
         </div>
     </div>
 
-    <!-- Available Quizzes -->
+    <!-- Available Categories -->
     <div class="row">
         <div class="col-md-12">
-            <h3><i class="bi bi-journal-text"></i> Available Quizzes</h3>
-            @if($quizzes->count() > 0)
+            <h3><i class="bi bi-grid-3x3-gap"></i> Quiz Categories</h3>
+            @if($categories->count() > 0)
                 <div class="row">
-                    @foreach($quizzes as $quiz)
-                        @php
-                            $isCompleted = in_array($quiz->id, $userCompletedQuizzes);
-                        @endphp
-                        <div class="col-md-4 mb-4">
-                            <div class="card quiz-card h-100 {{ $isCompleted ? 'border-success' : '' }}">
-                                <div class="card-header {{ $isCompleted ? 'bg-success' : 'bg-primary' }} text-white position-relative">
-                                    <h5 class="card-title mb-0">
-                                        {{ $quiz->title }}
-                                        @if($isCompleted)
-                                            <i class="bi bi-check-circle-fill ms-2"></i>
-                                        @endif
-                                    </h5>
-                                    <small>{{ $quiz->category->name }}</small>
-                                    @if($isCompleted)
-                                        <span class="position-absolute top-0 start-100 translate-middle badge rounded-pill bg-warning text-dark">
-                                            <i class="bi bi-trophy-fill"></i> Completed
-                                        </span>
+                    @foreach($categories as $category)
+                        <div class="col-md-4 col-lg-3 mb-4">
+                            <div class="card category-card h-100 border-{{ $category['color'] }}">
+                                <div class="card-body text-center">
+                                    <div class="category-icon mb-3">
+                                        <i class="bi bi-{{ $category['icon'] }} fs-1 text-{{ $category['color'] }}"></i>
+                                    </div>
+                                    <h5 class="card-title">{{ $category['name'] }}</h5>
+                                    @if($category['description'])
+                                        <p class="card-text text-muted small">{{ Str::limit($category['description'], 60) }}</p>
                                     @endif
-                                </div>
-                                <div class="card-body">
-                                    <p class="card-text">{{ Str::limit($quiz->description, 100) }}</p>
-                                    <div class="row text-center">
-                                        <div class="col-4">
-                                            <small class="text-muted">Questions</small>
-                                            <div class="fw-bold">{{ $quiz->questions_count }}</div>
+
+                                    <div class="row text-center mb-3">
+                                        <div class="col-6">
+                                            <div class="border-end">
+                                                <strong class="text-{{ $category['color'] }}">{{ $category['quiz_count'] }}</strong>
+                                                <div class="small text-muted">Quizzes</div>
+                                            </div>
                                         </div>
-                                        <div class="col-4">
-                                            <small class="text-muted">Time Limit</small>
-                                            <div class="fw-bold">{{ $quiz->time_limit }}m</div>
+                                        <div class="col-6">
+                                            <strong class="text-{{ $category['color'] }}">{{ $category['total_attempts'] }}</strong>
+                                            <div class="small text-muted">Attempts</div>
                                         </div>
-                                        <div class="col-4">
-                                            <small class="text-muted">Attempts</small>
-                                            <div class="fw-bold">{{ $quiz->attempts_count }}</div>
-                                        </div>
+                                    </div>
+
+                                    <div class="mb-3">
+                                        <span class="badge bg-{{ $category['color'] }}">{{ $category['difficulty_level'] }}</span>
                                     </div>
                                 </div>
                                 <div class="card-footer">
-                                    @if($isCompleted)
-                                        <div class="row">
-                                            <div class="col-6">
-                                                <a href="{{ route('quiz.show', $quiz) }}" class="btn btn-outline-success w-100 btn-sm">
-                                                    <i class="bi bi-arrow-repeat"></i> Retake
-                                                </a>
-                                            </div>
-                                            <div class="col-6">
-                                                @php
-                                                    $lastAttempt = \App\Models\QuizAttempt::where('user_id', auth()->id())
-                                                        ->where('quiz_id', $quiz->id)
-                                                        ->whereNotNull('completed_at')
-                                                        ->latest()
-                                                        ->first();
-                                                @endphp
-                                                @if($lastAttempt)
-                                                    <a href="{{ route('quiz.result', ['quiz' => $quiz, 'attempt' => $lastAttempt]) }}" class="btn btn-info w-100 btn-sm">
-                                                        <i class="bi bi-eye"></i> View Result
-                                                    </a>
-                                                @endif
-                                            </div>
-                                        </div>
-                                        <div class="mt-2 text-center">
-                                            @if($lastAttempt)
-                                                <small class="text-success">
-                                                    <i class="bi bi-check-circle"></i>
-                                                    Last Score: <strong>{{ $lastAttempt->score }}%</strong>
-                                                </small>
-                                            @endif
-                                        </div>
-                                    @else
-                                        <a href="{{ route('quiz.show', $quiz) }}" class="btn btn-primary w-100">
-                                            <i class="bi bi-play-circle"></i> Take Quiz
+                                    @if($category['quiz_count'] > 0)
+                                        <a href="{{ route('user.category.quizzes', $category['id']) }}"
+                                           class="btn btn-{{ $category['color'] }} w-100">
+                                            <i class="bi bi-arrow-right-circle"></i> Explore Quizzes
                                         </a>
+                                    @else
+                                        <button class="btn btn-outline-secondary w-100" disabled>
+                                            <i class="bi bi-hourglass"></i> Coming Soon
+                                        </button>
                                     @endif
                                 </div>
                             </div>
@@ -205,25 +172,21 @@
                     @endforeach
                 </div>
 
-                <!-- Pagination -->
-                <div class="d-flex justify-content-center">
-                    {{ $quizzes->appends(request()->query())->links() }}
-                </div>
             @else
                 <div class="text-center py-5">
-                    <i class="bi bi-journal-x fs-1 text-muted"></i>
-                    <h4 class="text-muted">No quizzes found</h4>
-                    <p class="text-muted">Try adjusting your search criteria.</p>
+                    <i class="bi bi-grid-3x3-gap fs-1 text-muted"></i>
+                    <h5 class="text-muted mt-3">No Categories Available</h5>
+                    <p class="text-muted">Categories will appear here once they are created by administrators.</p>
                 </div>
             @endif
         </div>
     </div>
 
-    <!-- Recent Attempts -->
-    @if($userStats['recent_attempts']->count() > 0)
+    <!-- Recent Activity -->
+    @if($recentAttempts->count() > 0)
         <div class="row mt-5">
             <div class="col-md-12">
-                <h3><i class="bi bi-clock-history"></i> Recent Attempts</h3>
+                <h3><i class="bi bi-clock-history"></i> Recent Activity</h3>
                 <div class="card">
                     <div class="card-body">
                         <div class="table-responsive">
@@ -231,26 +194,43 @@
                                 <thead>
                                     <tr>
                                         <th>Quiz</th>
+                                        <th>Category</th>
                                         <th>Score</th>
                                         <th>Completed</th>
+                                        <th>Performance</th>
                                         <th>Action</th>
                                     </tr>
                                 </thead>
                                 <tbody>
-                                    @foreach($userStats['recent_attempts'] as $attempt)
+                                    @foreach($recentAttempts as $attempt)
                                         <tr>
                                             <td>
-                                                <strong>{{ $attempt->quiz->title }}</strong><br>
-                                                <small class="text-muted">{{ $attempt->quiz->category->name }}</small>
+                                                <div class="fw-semibold">{{ $attempt->quiz->title }}</div>
                                             </td>
                                             <td>
-                                                <span class="badge bg-{{ $attempt->score >= 80 ? 'success' : ($attempt->score >= 60 ? 'warning' : 'danger') }}">
-                                                    {{ $attempt->score }}%
-                                                </span>
+                                                <span class="badge bg-secondary">{{ $attempt->quiz->category->name }}</span>
                                             </td>
-                                            <td>{{ $attempt->completed_at->format('M d, Y H:i') }}</td>
                                             <td>
-                                                <a href="{{ route('quiz.result', ['quiz' => $attempt->quiz, 'attempt' => $attempt]) }}" 
+                                                <span class="fw-bold">{{ $attempt->score }}%</span>
+                                            </td>
+                                            <td>
+                                                <small>{{ $attempt->completed_at->format('M d, Y H:i') }}</small>
+                                            </td>
+                                            <td>
+                                                @if($attempt->score >= 90)
+                                                    <span class="badge bg-success">Excellent</span>
+                                                @elseif($attempt->score >= 80)
+                                                    <span class="badge bg-info">Very Good</span>
+                                                @elseif($attempt->score >= 70)
+                                                    <span class="badge bg-warning">Good</span>
+                                                @elseif($attempt->score >= 60)
+                                                    <span class="badge bg-secondary">Fair</span>
+                                                @else
+                                                    <span class="badge bg-danger">Needs Improvement</span>
+                                                @endif
+                                            </td>
+                                            <td>
+                                                <a href="{{ route('quiz.result', ['quiz' => $attempt->quiz, 'attempt' => $attempt]) }}"
                                                    class="btn btn-sm btn-outline-primary">
                                                     <i class="bi bi-eye"></i> View Result
                                                 </a>
@@ -259,6 +239,11 @@
                                     @endforeach
                                 </tbody>
                             </table>
+                        </div>
+                        <div class="text-center mt-3">
+                            <a href="{{ route('user.results') }}" class="btn btn-outline-primary">
+                                <i class="bi bi-eye"></i> View All Results
+                            </a>
                         </div>
                     </div>
                 </div>
@@ -281,6 +266,20 @@
 }
 
 .completed-badge {
+    animation: pulse 2s infinite;
+}
+
+.category-card {
+    transition: all 0.3s ease;
+    cursor: pointer;
+}
+
+.category-card:hover {
+    transform: translateY(-5px);
+    box-shadow: 0 8px 16px rgba(0,0,0,0.1);
+}
+
+.category-icon {
     animation: pulse 2s infinite;
 }
 
