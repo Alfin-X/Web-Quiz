@@ -90,6 +90,11 @@
                                         <i class="bi bi-tags"></i> Categories
                                     </a>
                                 </li>
+                                <li class="nav-item">
+                                    <a class="nav-link" href="{{ route('admin.users') }}">
+                                        <i class="bi bi-people"></i> User Management
+                                    </a>
+                                </li>
                                 <li class="nav-item dropdown">
                                     <a class="nav-link dropdown-toggle" href="#" id="adminAnalyticsDropdown" role="button" data-bs-toggle="dropdown" aria-expanded="false">
                                         <i class="bi bi-graph-up"></i> Analytics

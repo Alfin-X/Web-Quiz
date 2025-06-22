@@ -8,6 +8,8 @@ use App\Models\Quiz;
 use App\Models\Question;
 use App\Models\QuestionOption;
 use App\Models\QuizAttempt;
+use Illuminate\Support\Facades\Hash;
+use Illuminate\Validation\Rule;
 use App\Models\User;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Storage;
@@ -558,5 +560,141 @@ class AdminController extends Controller
         };
 
         return response()->stream($callback, 200, $headers);
+    }
+
+    // User Management Methods
+    public function users(Request $request)
+    {
+        $query = User::query();
+
+        // Filter by role
+        if ($request->role && $request->role !== 'all') {
+            $query->where('role', $request->role);
+        }
+
+        // Search functionality
+        if ($request->search) {
+            $query->where(function($q) use ($request) {
+                $q->where('name', 'like', '%' . $request->search . '%')
+                  ->orWhere('email', 'like', '%' . $request->search . '%');
+            });
+        }
+
+        $users = $query->latest()->paginate(15);
+
+        $stats = [
+            'total_users' => User::count(),
+            'total_admins' => User::where('role', 'admin')->count(),
+            'total_gurus' => User::where('role', 'guru')->count(),
+            'total_students' => User::where('role', 'user')->count(),
+        ];
+
+        return view('admin.users.index', compact('users', 'stats'));
+    }
+
+    public function createUser()
+    {
+        return view('admin.users.create');
+    }
+
+    public function storeUser(Request $request)
+    {
+        $request->validate([
+            'name' => 'required|string|max:255',
+            'email' => 'required|string|email|max:255|unique:users',
+            'password' => 'required|string|min:8|confirmed',
+            'role' => 'required|in:admin,guru,user',
+        ]);
+
+        User::create([
+            'name' => $request->name,
+            'email' => $request->email,
+            'password' => Hash::make($request->password),
+            'role' => $request->role,
+            'email_verified_at' => now(), // Auto verify admin-created accounts
+        ]);
+
+        return redirect()->route('admin.users')
+            ->with('success', 'User account created successfully!');
+    }
+
+    public function editUser(User $user)
+    {
+        return view('admin.users.edit', compact('user'));
+    }
+
+    public function updateUser(Request $request, User $user)
+    {
+        $request->validate([
+            'name' => 'required|string|max:255',
+            'email' => ['required', 'string', 'email', 'max:255', Rule::unique('users')->ignore($user->id)],
+            'role' => 'required|in:admin,guru,user',
+            'password' => 'nullable|string|min:8|confirmed',
+        ]);
+
+        $updateData = [
+            'name' => $request->name,
+            'email' => $request->email,
+            'role' => $request->role,
+        ];
+
+        // Only update password if provided
+        if ($request->password) {
+            $updateData['password'] = Hash::make($request->password);
+        }
+
+        $user->update($updateData);
+
+        return redirect()->route('admin.users')
+            ->with('success', 'User account updated successfully!');
+    }
+
+    public function destroyUser(User $user)
+    {
+        // Prevent admin from deleting themselves
+        if ($user->id === auth()->id()) {
+            return redirect()->route('admin.users')
+                ->with('error', 'You cannot delete your own account!');
+        }
+
+        // Prevent deleting the last admin
+        if ($user->role === 'admin' && User::where('role', 'admin')->count() <= 1) {
+            return redirect()->route('admin.users')
+                ->with('error', 'Cannot delete the last admin account!');
+        }
+
+        $user->delete();
+
+        return redirect()->route('admin.users')
+            ->with('success', 'User account deleted successfully!');
+    }
+
+    public function bulkDeleteUsers(Request $request)
+    {
+        $request->validate([
+            'user_ids' => 'required|array',
+            'user_ids.*' => 'exists:users,id',
+        ]);
+
+        $userIds = $request->user_ids;
+
+        // Remove current admin from deletion list
+        $userIds = array_filter($userIds, function($id) {
+            return $id != auth()->id();
+        });
+
+        // Check if trying to delete all admins
+        $adminCount = User::where('role', 'admin')->count();
+        $adminsToDelete = User::whereIn('id', $userIds)->where('role', 'admin')->count();
+
+        if ($adminCount - $adminsToDelete < 1) {
+            return redirect()->route('admin.users')
+                ->with('error', 'Cannot delete all admin accounts! At least one admin must remain.');
+        }
+
+        User::whereIn('id', $userIds)->delete();
+
+        return redirect()->route('admin.users')
+            ->with('success', count($userIds) . ' user accounts deleted successfully!');
     }
 }
