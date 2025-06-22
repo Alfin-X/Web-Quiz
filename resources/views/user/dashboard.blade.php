@@ -65,7 +65,7 @@
                 <div class="card-body">
                     <div class="d-flex justify-content-between">
                         <div>
-                            <h4>{{ $quizzes->total() }}</h4>
+                            <h4>{{ collect($categories)->sum('quiz_count') }}</h4>
                             <p class="mb-0">Available Quizzes</p>
                         </div>
                         <div class="align-self-center">
@@ -77,48 +77,7 @@
         </div>
     </div>
 
-    <!-- Search and Filter -->
-    <div class="row mb-4">
-        <div class="col-md-12">
-            <div class="card">
-                <div class="card-body">
-                    <form method="GET" action="{{ route('user.dashboard') }}">
-                        <div class="row">
-                            <div class="col-md-6">
-                                <div class="form-group">
-                                    <label for="search">Search Quizzes</label>
-                                    <input type="text" class="form-control" id="search" name="search" 
-                                           value="{{ request('search') }}" placeholder="Search by title...">
-                                </div>
-                            </div>
-                            <div class="col-md-4">
-                                <div class="form-group">
-                                    <label for="category">Category</label>
-                                    <select class="form-control" id="category" name="category">
-                                        <option value="">All Categories</option>
-                                        @foreach($categories as $category)
-                                            <option value="{{ $category->id }}" 
-                                                {{ request('category') == $category->id ? 'selected' : '' }}>
-                                                {{ $category->name }}
-                                            </option>
-                                        @endforeach
-                                    </select>
-                                </div>
-                            </div>
-                            <div class="col-md-2">
-                                <div class="form-group">
-                                    <label>&nbsp;</label>
-                                    <button type="submit" class="btn btn-primary d-block w-100">
-                                        <i class="bi bi-search"></i> Search
-                                    </button>
-                                </div>
-                            </div>
-                        </div>
-                    </form>
-                </div>
-            </div>
-        </div>
-    </div>
+
 
     <!-- Available Categories -->
     <div class="row">

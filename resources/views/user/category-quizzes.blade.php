@@ -23,7 +23,22 @@
             <div class="row text-center">
                 <div class="col-md-3">
                     <div class="category-icon mb-2">
-                        <i class="bi bi-{{ $this->getCategoryIcon($category->name) }} fs-1 text-primary"></i>
+                        @php
+                            $categoryIcons = [
+                                'Matematika' => 'calculator',
+                                'Bahasa Indonesia' => 'book',
+                                'IPA' => 'flask',
+                                'IPS' => 'globe',
+                                'Sejarah' => 'clock-history',
+                                'Geografi' => 'geo-alt',
+                                'Fisika' => 'lightning',
+                                'Kimia' => 'droplet',
+                                'Biologi' => 'tree',
+                                'Bahasa Inggris' => 'translate',
+                            ];
+                            $icon = $categoryIcons[$category->name] ?? 'journal-text';
+                        @endphp
+                        <i class="bi bi-{{ $icon }} fs-1 text-primary"></i>
                     </div>
                     <h5>{{ $category->name }}</h5>
                 </div>
